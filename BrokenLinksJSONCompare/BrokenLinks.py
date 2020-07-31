@@ -1,23 +1,73 @@
+import os
 import sys
-import Github.pfx_dev.PFX.JSONParserForItems.ItemsInShotsV5 as IIS
+import json
+import maya.cmds as cmds
+sys.path.insert(0, r"C:\Python27\Lib\site-packages")
+from PyQt4 import QtCore, QtGui, uic
 
-## parse through JSON 
-## gather shot and asset location
-## compare and gather items from each shot 
-## if not in intersection of the dependant files 
-## list as broken links
-## 
+
+# Open Maya scene files.
+def openMaya(root=None):
+    # Check if file exists
+    fileExtensions = [".ma", ".mb"]
+    shotName = os.path.basename(root)
+    shot = shotName.split("_maya_")[0]
+    print(shotName)
+    print(shot)
+    if os.path.exists(root) and shotName.lower() in fileExtensions:
+        opened_file = cmds.file(maya_file_to_open, o=True)
+
+        print("you have opened " + shotName)
+    return shot
+
+# parse through JSON
+
+
+def jsonParseData(root=None):
+    with open(root) as f:
+        jsonData = json.load(f)
+    print jsonData
+    return jsonData
+
+# check if texture/alembic files are within scene
+# compare and gather items from each shot
+
+
+def ItemsNLocationToList():
+    listOfItemLocations = []
+    for p in texLocationInScene():
+        # texture for item in location
+        fileName = os.path.basename(p)
+        pTup = (fileName.split(r"_texture_")[0], p)
+        listOfItemLocations.append(pTup)
+    for abc in abcLocationInScene():
+        # alembic for Item in location
+        fileName = os.path.normpath(os.path.basename(abc))
+        hello = abc.split(r"/cache")
+        pTup = (os.path.basename(hello[0]), os.path.normpath(abc))
+        listOfItemLocations.append(pTup)
+        print listOfItemLocations
+    return listOfItemLocations
+
+# search json file if character/prop is in scene
+
+# Split up alembic file paths by its cache file locations
+# locate the shot and char/prop that is located in scene
+# compare against json file to check if char/prop should be in the scene
+
+# if item should not be in scene paste that the item is not in scene
+
 
 def texLocationInScene():
-    '''locates all texture files in scene 
+    '''locates all texture files in scene
     must have a scene open
-    filters results that lack textures in scene 
+    filters results that lack textures in scene
     lists file types by location
 
-    output: location or lack of location 
+    output: location or lack of location
     '''
     texDirs = []
-    fileList = mc.ls(type="file")
+    fileList = cmds.ls(type="file")
 
     if not fileList:
         texDirs.append("There were no file paths found.")
@@ -26,7 +76,7 @@ def texLocationInScene():
     for f in fileList:
         try:
             # handle error when no files are attached to shader
-            fPath = mc.getAttr(f+".fileTextureName")
+            fPath = cmds.getAttr(f+".fileTextureName")
         except AttributeError:
             print("there is no attribute: " + f+".fileTextureName")
         dirPath = os.path.split(fPath)[0]
@@ -34,21 +84,20 @@ def texLocationInScene():
         if fPath not in texDirs:
             texDirs.append(fPath)
         texDirs.sort()
-
     return texDirs
 
 
 def abcLocationInScene():
-    '''locates all alembic cache files in scene 
+    '''locates all alembic cache files in scene
     must have a scene open
-    filters results that lacks alembic cache files in scene 
+    filters results that lacks alembic cache files in scene
     lists alembicNodes or gpuCache types by location
 
-    output: location or lack of location of alembic cache 
+    output: location or lack of location of alembic cache
     '''
     abcDirs = []
-    meshList = mc.ls(type="gpuCache", dagObjects=True, noIntermediate=True)
-    animatedMeshes = mc.ls(type="AlembicNode")
+    meshList = cmds.ls(type="gpuCache", dagObjects=True, noIntermediate=True)
+    animatedMeshes = cmds.ls(type="AlembicNode")
 
     if not meshList and not animatedMeshes:
         abcDirs.append("There were no file paths found.")
@@ -56,7 +105,7 @@ def abcLocationInScene():
 
     for m in meshList:
         try:
-            aPath = mc.getAttr(m+'.cacheFileName')
+            aPath = cmds.getAttr(m+'.cacheFileName')
         except AttributeError:
             print("there is no attribute: " + m+'.cacheFileName')
         location = os.path.split(aPath)[0]
@@ -71,22 +120,44 @@ def abcLocationInScene():
             print("there is no attribute: " + m + '.abc_File')
         if cache_path not in abcDirs:
             abcDirs.append(cache_path)
-
     return abcDirs
 
+
+def checkItemInShot(jsonData=None, shotNumber=None):
+    ShotList = []
+    for shot, sh_dict in jsonData.items():
+        if shotNumber == shot:
+            for itemName, location in ItemsNLocationToList():
+                if not sh_dict.get(itemName.split("_")[0]):
+                    continue
+                if itemName in sh_dict.get(itemName.split("_")[0]):
+                    pass
+                else:
+                    print('The item, {0}, is not in {1}'.format(itemName, shotNumber))
+                    ShotList.append({itemName, shotNumber})
+    return ShotList
+
+
+
+class Broken_Links_Form(QtGui.QMainWindow):
+    def __init__(self, parent=QtGui.QApplication.instance()):
+        super(Broken_Links_Form, self).__init__()
+        uic.loadUi(r"BrokenLinksJSONCompare\BrokenLinks.ui", self)
+        self.textEdit_location()
+        # self.pushButton.clicked.connect(
+        #     lambda: pass)
+
+
 def main(*args):
-    jsonPath=os.path.normpath(sys.argv[1])
-    keyForItem=sys.argv[2]
-    assetName=sys.argv[3]
-    jsonData={}
-    if not IIS.isValidJSON(root=jsonPath):
-        return
-    jsonData=IIS.jsonParseData(root=jsonPath)
+    # python location\of\BrokenLinks.py location\of\shot.json location\of\maya\scene.ma
+    print("")
+    jsonData = jsonParseData("C:\\Users\\anike\\Documents\\GitHub\\PFX_test\\PFX_test.json")
+    shotNumber = openMaya("C:\\Users\\anike\\Documents\\GitHub\\PFX_test\\010_010\\010_010_maya_v0001.ma")
+    ListItemNotInShot = checkItemInShot(jsonData=jsonData, shotNumber = shotNumber)
+    # app = QtGui.QApplication(sys.argv)
+    # Form = Broken_Links_Form()
+    # Form.show()
+    # sys.exit(app.exec_())
 
-    while not IIS.isValidItemKey(key=keyForItem):
-        keyForItem=input(
-            "Key not valid. input (Character, Prop, Environment, Shot): ")
-        IIS.isValidItemKey(key=keyForItem)
 
-    mayaScenePath=IIS.checkItemInShot()
-    IIS.isValidMayaScene()
+main()
