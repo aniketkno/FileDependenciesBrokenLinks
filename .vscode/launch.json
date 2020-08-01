@@ -8,7 +8,7 @@
         {
             "name": "Python: Current File",
             "type": "python",
-            "args":["C:\\Users\\anike\\Documents\\GitHub\\PFX_test\\PFX_test.json", "C:\\Users\\anike\\Documents\\GitHub\\PFX_test\\010_010\\010_010_maya_v0001.ma"],
+            "args":[ ],
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"

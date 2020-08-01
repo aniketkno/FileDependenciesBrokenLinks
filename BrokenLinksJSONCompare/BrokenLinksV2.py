@@ -10,11 +10,11 @@ from PyQt4 import QtCore, QtGui, uic
 def openMaya(root=None):
     # Check if file exists
     fileExtensions = [".ma", ".mb"]
-    shotName = os.path.basename(root)
+    shotName = os.path.basename(str(root))
     shot = shotName.split("_maya_")[0]
     print(shotName)
     print(shot)
-    if os.path.exists(root) and shotName.lower() in fileExtensions:
+    if os.path.exists(str(root)) and shotName.lower() in fileExtensions:
         opened_file = cmds.file(maya_file_to_open, o=True)
 
         print("you have opened " + shotName)
@@ -156,10 +156,6 @@ class Broken_Links_Form(QtGui.QMainWindow):
             lambda: self.lineEdit_MayaLocation.setText(QtGui.QFileDialog.getOpenFileName()))
         self.toolButton_JSONLocation.clicked.connect(
             lambda: self.lineEdit_JSONLocation.setText(QtGui.QFileDialog.getOpenFileName()))
-        # self.mayaLocation = 
-        self.lineEdit_MayaLocation.textChanged[str].connect(self.validPath)
-        # self.jsonLocation = 
-        self.lineEdit_JSONLocation.textChanged[str].connect(self.validPath)
         self.pushButton_AnalyzeBrokenLinks.clicked.connect(
             lambda: self.findMissingLinks())
 
@@ -168,10 +164,11 @@ class Broken_Links_Form(QtGui.QMainWindow):
             return filePath
 
     def findMissingLinks(self):
-        jsonData = jsonParseData(self.jsonLocation)
-        shotNumber = openMaya(self.jsonLocation)
-        textEdit_missingLinks.setText(checkItemInShot(
-            jsonData == jsonData, shotNumber=shotNumber))
+        print(self.lineEdit_JSONLocation.text())
+        jsonDataDict = jsonParseData(self.lineEdit_JSONLocation.text())
+        shotNumberValue = openMaya(self.lineEdit_MayaLocation.text())
+        self.textEdit_missingLinks.setText(checkItemInShot(
+            jsonData = jsonDataDict, shotNumber=shotNumberValue))
 
 def main(*args):
     # python location\of\BrokenLinks.py location\of\shot.json location\of\maya\scene.ma
