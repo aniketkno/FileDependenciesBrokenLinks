@@ -36,6 +36,13 @@ def openMaya(sceneFileLocation=None):
     return shotNum, itemList
 
 
+def validPath(filePath=None):
+    if os.path.isfile(filePath):
+        return True
+    else:
+        return False
+
+
 def jsonParseData(root=None):
     print(root)
     with open(os.path.abspath(root), 'r') as f:
@@ -116,21 +123,27 @@ def checkItemInShot(jsonData=None, shotNumber=None, items=None):
         return "WARNING: This shot IS NOT in project."
     elif not jsonData:
         return "WARNING: JSON data was not loaded properly"
-    ShotList = ""
+    wrongTexItemList = ""
+    wrongAbcItemList = ""
+    missingItemList = ""
+
+    print(shotNumber)
     for shot, sh_dict in jsonData.items():
         if shotNumber == shot:
-            print(shotNumber)
             for item in items:
                 for itemName, location in item:
-                    if not sh_dict.get(itemName.split("_")[0]):
-                        ShotList += 'The {1} does not contain {0}'.format(
+                    if not sh_dict.get(itemName.split("_")[0]) and location.split(".")[-1] == "abc":
+                        wrongAbcItemList += '{0}'.format(
                             itemName, shotNumber) + "\n"
-                        continue
-        else:
-            print(shotNumber)
-    if not ShotList:
+                    elif not sh_dict.get(itemName.split("_")[0]):
+                        wrongTexItemList += '{0}'.format(
+                            itemName, shotNumber) + "\n"
+                    if not validPath(location):
+                        missingItemList += '{0} is missing from: .......  {1}'.format(
+                            itemName, location) + "\n"
+    if not wrongTexItemList and not wrongAbcItemList and not missingItemList:
         return "There are no missing links"
-    return ShotList
+    return "Alembic Files Not in Shot \n" + wrongAbcItemList + "\n" + "Texture Files Not in Shot \n" + wrongTexItemList + "\n" + "Files in shot, but are missing from location \n" + missingItemList
 
 
 class Broken_Links_Form(QtGui.QMainWindow):
@@ -144,10 +157,6 @@ class Broken_Links_Form(QtGui.QMainWindow):
             lambda: self.lineEdit_JSONLocation.setText(QtGui.QFileDialog.getOpenFileName()))
         self.pushButton_AnalyzeBrokenLinks.clicked.connect(
             lambda: self.findMissingLinks())
-
-    def validPath(self, filePath=None):
-        if os.path.isfile(filePath):
-            return filePath
 
     def findMissingLinks(self):
         jsonDataDict = jsonParseData(self.lineEdit_JSONLocation.text())

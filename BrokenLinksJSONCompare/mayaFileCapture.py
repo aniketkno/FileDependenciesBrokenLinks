@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import subprocess
 import maya.cmds as cmds
 
 
@@ -32,7 +31,7 @@ class MayaOrganizer():
         fileExtensions = [".ma", ".mb"]
         shotName = os.path.basename(str(sceneFileLocation2))
         shot = shotName.split("_maya_")[0]
-        shot = "010_030" ##DELETE EVENTUALLY
+
         print(shot)
 
         if os.path.exists(str(sceneFileLocation2)) and shotName.lower() in fileExtensions:
@@ -59,6 +58,7 @@ class MayaOrganizer():
             if fPath not in texDirs:
                 texDirs.append(fPath)
             texDirs.sort()
+        print(texDirs)
         return texDirs
 
     def abcLocationInScene(self):
@@ -99,9 +99,8 @@ class MayaOrganizer():
             self.listOfItemLocations.append(pTup)
         for abc in self.abcLocationInScene():
             # alembic for Item in location
-            fileName = os.path.normpath(os.path.basename(abc))
-            hello = abc.split(r"/cache")
-            pTup = (os.path.basename(hello[0]), os.path.normpath(abc))
+            fileName = abc.split(r"/cache")
+            pTup = (os.path.basename(fileName[1]), abc)
             print(pTup)
             self.listOfItemLocations.append(pTup)
         print self.listOfItemLocations
