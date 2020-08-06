@@ -32,6 +32,7 @@ class MayaOrganizer():
         fileExtensions = [".ma", ".mb"]
         shotName = os.path.basename(str(sceneFileLocation2))
         shot = shotName.split("_maya_")[0]
+        shot = "010_030" ##DELETE EVENTUALLY
         print(shot)
 
         if os.path.exists(str(sceneFileLocation2)) and shotName.lower() in fileExtensions:

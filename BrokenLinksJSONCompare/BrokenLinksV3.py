@@ -7,24 +7,21 @@ import maya.cmds as cmds
 sys.path.insert(0, r"C:\Python27\Lib\site-packages")
 from PyQt4 import QtCore, QtGui, uic
 
-shot = ""
-
 
 def openMaya(sceneFileLocation=None):
     # Check if file exists
     mayaPath = r"C:\Program Files\Autodesk\Maya2019\bin\maya.exe"
     pyScript = "C:/Users/anike/Documents/GitHub/FileDependenciesBrokenLinks/BrokenLinksJSONCompare/mayaFileCapture.py"
-    
+
     # shotLocation = open("BrokenLinksJSONCompare\location.txt", "w+")
     # shotLocation.seek(0)
     # shotLocation.truncate()
     # print(str(sceneFileLocation))
     # shotLocation.write(str(sceneFileLocation))
     # shotLocation.close()
-    jsonLocation = {str(sceneFileLocation) : []}
+    jsonLocation = {str(sceneFileLocation): []}
     with open("BrokenLinksJSONCompare\location.json", "w+") as emptyShot:
         json.dump(jsonLocation, emptyShot)
-
 
     openMayaCmd = subprocess.Popen(
         [mayaPath, "-batch", "-file", str(sceneFileLocation), "-command", "python(\"execfile('{0}')\")".format(pyScript)])
@@ -33,8 +30,10 @@ def openMaya(sceneFileLocation=None):
     with open("BrokenLinksJSONCompare\location.json", "r") as loadedLocation:
         dictLocations = json.load(loadedLocation)
     print(dictLocations.keys())
-    print(dictLocations.values() )
-    return dictLocations.keys()
+    print(dictLocations.values())
+    shotNum = dictLocations.keys()[0]
+    itemList = dictLocations.values()
+    return shotNum, itemList
 
 
 def jsonParseData(root=None):
@@ -43,6 +42,7 @@ def jsonParseData(root=None):
         jsonData = json.load(f)
     print jsonData
     return jsonData
+
 
 '''
 def ItemsNLocationToList():
@@ -110,25 +110,24 @@ def abcLocationInScene():
     return abcDirs
 '''
 
-def checkItemInShot(jsonData=None, shotNumber=None):
+
+def checkItemInShot(jsonData=None, shotNumber=None, items=None):
     if not shotNumber:
-        return "WARNING: " + shotNumber + " shot IS NOT in project."
-    elif not jsonData: 
+        return "WARNING: This shot IS NOT in project."
+    elif not jsonData:
         return "WARNING: JSON data was not loaded properly"
-    ShotList = []
+    ShotList = ""
     for shot, sh_dict in jsonData.items():
         if shotNumber == shot:
             print(shotNumber)
-            for itemName, location in itemsLocationToList:
-                if not sh_dict.get(itemName.split("_")[0]):
-                    continue
-                if itemName in sh_dict.get(itemName.split("_")[0]):
-                    pass
-                else:
-                    print('The item, {0}, is not in {1}'.format(
-                        itemName, shotNumber))
-                    ShotList.append({itemName, shotNumber})
-        else: print(shotNumber)
+            for item in items:
+                for itemName, location in item:
+                    if not sh_dict.get(itemName.split("_")[0]):
+                        ShotList += 'The {1} does not contain {0}'.format(
+                            itemName, shotNumber) + "\n"
+                        continue
+        else:
+            print(shotNumber)
     if not ShotList:
         return "There are no missing links"
     return ShotList
@@ -152,9 +151,10 @@ class Broken_Links_Form(QtGui.QMainWindow):
 
     def findMissingLinks(self):
         jsonDataDict = jsonParseData(self.lineEdit_JSONLocation.text())
-        shotNumberValue = openMaya(self.lineEdit_MayaLocation.text())
+        shotNumberValue, itemLocations = openMaya(
+            self.lineEdit_MayaLocation.text())
         self.textEdit_missingLinks.setText(checkItemInShot(
-            jsonData=jsonDataDict, shotNumber=shotNumberValue))
+            jsonData=jsonDataDict, shotNumber=shotNumberValue, items=itemLocations))
 
 
 def main(*args):
