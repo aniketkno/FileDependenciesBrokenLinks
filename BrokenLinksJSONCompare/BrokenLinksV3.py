@@ -9,16 +9,17 @@ from PyQt4 import QtCore, QtGui, uic
 
 
 def openMaya(sceneFileLocation=None):
-    # Check if file exists
+    '''
+    dumps json file with scene location for maya to open
+    opens maya and runs mayaFileCapture.py internally in maya batch
+    load json file to dictionary shot number and items tuples
+
+    input: scene file location
+    returns: shot number, list of tuples containing items and location
+    '''
     mayaPath = r"C:\Program Files\Autodesk\Maya2019\bin\maya.exe"
     pyScript = "C:/Users/anike/Documents/GitHub/FileDependenciesBrokenLinks/BrokenLinksJSONCompare/mayaFileCapture.py"
 
-    # shotLocation = open("BrokenLinksJSONCompare\location.txt", "w+")
-    # shotLocation.seek(0)
-    # shotLocation.truncate()
-    # print(str(sceneFileLocation))
-    # shotLocation.write(str(sceneFileLocation))
-    # shotLocation.close()
     jsonLocation = {str(sceneFileLocation): []}
     with open("BrokenLinksJSONCompare\location.json", "w+") as emptyShot:
         json.dump(jsonLocation, emptyShot)
@@ -26,17 +27,23 @@ def openMaya(sceneFileLocation=None):
     openMayaCmd = subprocess.Popen(
         [mayaPath, "-batch", "-file", str(sceneFileLocation), "-command", "python(\"execfile('{0}')\")".format(pyScript)])
     openMayaCmd.wait()
+
     dictLocations = {}
     with open("BrokenLinksJSONCompare\location.json", "r") as loadedLocation:
         dictLocations = json.load(loadedLocation)
-    print(dictLocations.keys())
-    print(dictLocations.values())
+
+
     shotNum = dictLocations.keys()[0]
     itemList = dictLocations.values()
     return shotNum, itemList
 
 
 def validPath(filePath=None):
+    '''
+    makes sure if paths are actual files
+    input: file path
+    output: bool
+    '''
     if os.path.isfile(filePath):
         return True
     else:
@@ -44,81 +51,26 @@ def validPath(filePath=None):
 
 
 def jsonParseData(root=None):
-    print(root)
+    '''
+    loads json file into a dictionary
+    input: location of json file
+    output: dictionary
+    '''
+
     with open(os.path.abspath(root), 'r') as f:
         jsonData = json.load(f)
-    print jsonData
     return jsonData
 
 
-'''
-def ItemsNLocationToList():
-    listOfItemLocations = []
-    for p in texLocationInScene():
-        # texture for item in location
-        fileName = os.path.basename(p)
-        pTup = (fileName.split(r"_texture_")[0], p)
-        listOfItemLocations.append(pTup)
-    for abc in abcLocationInScene():
-        # alembic for Item in location
-        fileName = os.path.normpath(os.path.basename(abc))
-        hello = abc.split(r"/cache")
-        pTup = (os.path.basename(hello[0]), os.path.normpath(abc))
-        listOfItemLocations.append(pTup)
-        print listOfItemLocations
-    return listOfItemLocations
-def texLocationInScene():
-
-    texDirs = []
-    fileList = cmds.ls(type="file")
-
-    if not fileList:
-        texDirs.append("There were no file paths found.")
-        return texDirs
-
-    for f in fileList:
-        try:
-            # handle error when no files are attached to shader
-            fPath = cmds.getAttr(f+".fileTextureName")
-        except AttributeError:
-            print("there is no attribute: " + f+".fileTextureName")
-        dirPath = os.path.splitext(fPath)[0]
-
-        if fPath not in texDirs:
-            texDirs.append(fPath)
-        texDirs.sort()
-    return texDirs
-def abcLocationInScene():
-    abcDirs = []
-    meshList = cmds.ls(type="gpuCache", dagObjects=True, noIntermediate=True)
-    animatedMeshes = cmds.ls(type="AlembicNode")
-
-    if not meshList and not animatedMeshes:
-        abcDirs.append("There were no file paths found.")
-        return abcDirs
-
-    for m in meshList:
-        try:
-            aPath = cmds.getAttr(m+'.cacheFileName')
-        except AttributeError:
-            print("there is no attribute: " + m+'.cacheFileName')
-        location = os.path.split(aPath)[0]
-        if aPath not in abcDirs:
-            abcDirs.append(aPath)
-        abcDirs.sort()
-
-    for m in animatedMeshes:
-        try:
-            cache_path = cmds.getAttr(m + '.abc_File')
-        except AttributeError:
-            print("there is no attribute: " + m + '.abc_File')
-        if cache_path not in abcDirs:
-            abcDirs.append(cache_path)
-    return abcDirs
-'''
-
-
 def checkItemInShot(jsonData=None, shotNumber=None, items=None):
+    '''
+    check if shotnumber, jsonData are loaded
+    feeds key as shot into json directory and checks if files are located
+    if Item is not suppose to be in shot then item is listed. 
+    if Item is part of the scene however the file is not located in file directory it gets listed.
+    input: Dictionary from json file, shotnumber and items from maya scene 
+    output: string of location that are not meeting criteria if files are missing
+    '''
     if not shotNumber:
         return "WARNING: This shot IS NOT in project."
     elif not jsonData:
@@ -127,7 +79,6 @@ def checkItemInShot(jsonData=None, shotNumber=None, items=None):
     wrongAbcItemList = ""
     missingItemList = ""
 
-    print(shotNumber)
     for shot, sh_dict in jsonData.items():
         if shotNumber == shot:
             for item in items:
@@ -147,7 +98,18 @@ def checkItemInShot(jsonData=None, shotNumber=None, items=None):
 
 
 class Broken_Links_Form(QtGui.QMainWindow):
+    '''
+    runs gui for parsing scenes for missing texture/alembic files
+    input: qtgui object
+    output: visual gui
+    '''
+
     def __init__(self, parent=QtGui.QApplication.instance()):
+        '''
+        initializes gui and connects buttons to text
+        input: location of maya scens and project json file
+        output: list of missing links in gui
+        '''
         super(Broken_Links_Form, self).__init__()
         uic.loadUi(
             r"C:\Users\anike\Documents\GitHub\FileDependenciesBrokenLinks\BrokenLinksJSONCompare\BrokenLinks.ui", self)
@@ -159,6 +121,14 @@ class Broken_Links_Form(QtGui.QMainWindow):
             lambda: self.findMissingLinks())
 
     def findMissingLinks(self):
+        '''
+        loads json data from file
+        loads shot and item location 
+        connects data into the textedit
+        input: analyze button click connected , no other data
+        output: data to textedit in gui
+        '''
+
         jsonDataDict = jsonParseData(self.lineEdit_JSONLocation.text())
         shotNumberValue, itemLocations = openMaya(
             self.lineEdit_MayaLocation.text())
