@@ -1,4 +1,3 @@
-import re
 import os
 import sys
 import json
@@ -6,46 +5,37 @@ import subprocess
 import maya.cmds as cmds
 sys.path.insert(0, r"C:\Python27\Lib\site-packages")
 from PyQt4 import QtCore, QtGui, uic
+from  openMayaScene import openMayaScene
 
-shot = ""
-
-
-def openMaya(sceneFileLocation=None):
+# Open Maya scene files.
+def openMayaApp(root=None):
     # Check if file exists
+    fileExtensions = [".ma", ".mb"]
+    shotName = os.path.basename(str(root))
+    shot = shotName.split("_maya_")[0]
     mayaPath = r"C:\Program Files\Autodesk\Maya2019\bin\maya.exe"
-    pyScript = "C:/Users/anike/Documents/GitHub/FileDependenciesBrokenLinks/BrokenLinksJSONCompare/mayaFileCapture.py"
-    
-    # shotLocation = open("BrokenLinksJSONCompare\location.txt", "w+")
-    # shotLocation.seek(0)
-    # shotLocation.truncate()
-    # print(str(sceneFileLocation))
-    # shotLocation.write(str(sceneFileLocation))
-    # shotLocation.close()
-    jsonLocation = {str(sceneFileLocation) : []}
-    with open("BrokenLinksJSONCompare\location.json", "w+") as emptyShot:
-        json.dump(jsonLocation, emptyShot)
-
-
     openMayaCmd = subprocess.Popen(
-        [mayaPath, "-batch", "-file", str(sceneFileLocation), "-command", "python(\"execfile('{0}')\")".format(pyScript)])
+        [mayaPath, "-batch", "-command", "python(\"execfile('{0}')\")".format(r"C:\Users\anike\Documents\GitHub\FileDependenciesBrokenLinks\BrokenLinksJSONCompare\openMayaScene.py")])
     openMayaCmd.wait()
-    dictLocations = {}
-    with open("BrokenLinksJSONCompare\location.json", "r") as loadedLocation:
-        dictLocations = json.load(loadedLocation)
-    print(dictLocations.keys())
-    print(dictLocations.values() )
-    return dictLocations.keys()
+    print("maya Opened")
+
+    openMayaScene(root, shotName, fileExtensions)
+    if openMayaScene == "done":
+        return shot
 
 
 def jsonParseData(root=None):
+    # parse through JSON
     print(root)
     with open(os.path.abspath(root), 'r') as f:
         jsonData = json.load(f)
     print jsonData
     return jsonData
 
-'''
+
 def ItemsNLocationToList():
+    # check if texture/alembic files are within scene
+    # compare and gather items from each shot
     listOfItemLocations = []
     for p in texLocationInScene():
         # texture for item in location
@@ -60,8 +50,16 @@ def ItemsNLocationToList():
         listOfItemLocations.append(pTup)
         print listOfItemLocations
     return listOfItemLocations
-def texLocationInScene():
 
+
+def texLocationInScene():
+    '''locates all texture files in scene
+    must have a scene open
+    filters results that lack textures in scene
+    lists file types by location
+
+    output: location or lack of location
+    '''
     texDirs = []
     fileList = cmds.ls(type="file")
 
@@ -81,7 +79,15 @@ def texLocationInScene():
             texDirs.append(fPath)
         texDirs.sort()
     return texDirs
+
 def abcLocationInScene():
+    '''locates all alembic cache files in scene
+    must have a scene open
+    filters results that lacks alembic cache files in scene
+    lists alembicNodes or gpuCache types by location
+
+    output: location or lack of location of alembic cache
+    '''
     abcDirs = []
     meshList = cmds.ls(type="gpuCache", dagObjects=True, noIntermediate=True)
     animatedMeshes = cmds.ls(type="AlembicNode")
@@ -108,18 +114,13 @@ def abcLocationInScene():
         if cache_path not in abcDirs:
             abcDirs.append(cache_path)
     return abcDirs
-'''
+
 
 def checkItemInShot(jsonData=None, shotNumber=None):
-    if not shotNumber:
-        return "WARNING: " + shotNumber + " shot IS NOT in project."
-    elif not jsonData: 
-        return "WARNING: JSON data was not loaded properly"
     ShotList = []
     for shot, sh_dict in jsonData.items():
         if shotNumber == shot:
-            print(shotNumber)
-            for itemName, location in itemsLocationToList:
+            for itemName, location in ItemsNLocationToList():
                 if not sh_dict.get(itemName.split("_")[0]):
                     continue
                 if itemName in sh_dict.get(itemName.split("_")[0]):
@@ -128,7 +129,6 @@ def checkItemInShot(jsonData=None, shotNumber=None):
                     print('The item, {0}, is not in {1}'.format(
                         itemName, shotNumber))
                     ShotList.append({itemName, shotNumber})
-        else: print(shotNumber)
     if not ShotList:
         return "There are no missing links"
     return ShotList
@@ -147,12 +147,13 @@ class Broken_Links_Form(QtGui.QMainWindow):
             lambda: self.findMissingLinks())
 
     def validPath(self, filePath=None):
-        if os.path.isfile(filePath):
-            return filePath
+        print(str(os.path.normpath(filePath)))
+        return str(os.path.normpath(filePath))
 
     def findMissingLinks(self):
-        jsonDataDict = jsonParseData(self.lineEdit_JSONLocation.text())
-        shotNumberValue = openMaya(self.lineEdit_MayaLocation.text())
+        print(self.lineEdit_JSONLocation.text())
+        jsonDataDict = jsonParseData(self.validPath(self.lineEdit_JSONLocation.text()))
+        shotNumberValue = openMayaApp(self.validPath(self.lineEdit_MayaLocation.text()))
         self.textEdit_missingLinks.setText(checkItemInShot(
             jsonData=jsonDataDict, shotNumber=shotNumberValue))
 
@@ -160,6 +161,7 @@ class Broken_Links_Form(QtGui.QMainWindow):
 def main(*args):
     # python location\of\BrokenLinks.py location\of\shot.json location\of\maya\scene.ma
     print("")
+
     app = QtGui.QApplication(sys.argv)
     Form = Broken_Links_Form()
     Form.show()
