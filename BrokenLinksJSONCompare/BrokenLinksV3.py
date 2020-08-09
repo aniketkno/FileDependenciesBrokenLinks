@@ -42,7 +42,7 @@ def validPath(filePath=None):
     '''
     makes sure if paths are actual files
     input: file path
-    output: bool
+    output: bool 
     '''
     if os.path.isfile(filePath):
         return True
